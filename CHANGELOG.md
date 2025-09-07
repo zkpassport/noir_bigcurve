@@ -1,5 +1,43 @@
 # Changelog
 
+## [0.5.0](https://github.com/madztheo/noir_bigcurve/compare/v0.9.0...v0.5.0) (2025-06-08)
+
+
+### ⚠ BREAKING CHANGES
+
+* bump bignum version to 0.7.3 ([#49](https://github.com/madztheo/noir_bigcurve/issues/49))
+* bump bignum to 0.7.2 ([#47](https://github.com/madztheo/noir_bigcurve/issues/47))
+* bump to bignum v0.7.1 ([#46](https://github.com/madztheo/noir_bigcurve/issues/46))
+* bump bignum version to `v0.6.0` ([#40](https://github.com/madztheo/noir_bigcurve/issues/40))
+* bump bignum to `v0.5.0` ([#30](https://github.com/madztheo/noir_bigcurve/issues/30))
+* update to noir_bignum v0.4.0 ([#10](https://github.com/madztheo/noir_bigcurve/issues/10))
+
+### Features
+
+* Add p521 and brainpool curves ([b05b558](https://github.com/madztheo/noir_bigcurve/commit/b05b558bd368c04ec5860cc63d899efee93ce01d))
+* Added predefined curves ([#8](https://github.com/madztheo/noir_bigcurve/issues/8)) ([582dc80](https://github.com/madztheo/noir_bigcurve/commit/582dc808886d146d40aee334bbc200ee858ad747))
+* Bump bignum to `v0.5.0` ([#30](https://github.com/madztheo/noir_bigcurve/issues/30)) ([8b88fb7](https://github.com/madztheo/noir_bigcurve/commit/8b88fb7bc2092ca51fedcddd31ee225d6ea971a8))
+* Bump bignum to 0.7.2 ([#47](https://github.com/madztheo/noir_bigcurve/issues/47)) ([1eaae46](https://github.com/madztheo/noir_bigcurve/commit/1eaae46ca270a340f57399232e3710730632c03e))
+* Bump to bignum v0.7.1 ([#46](https://github.com/madztheo/noir_bigcurve/issues/46)) ([c0b3997](https://github.com/madztheo/noir_bigcurve/commit/c0b3997f986a0724fa14cfe4645c376a8e84a243))
+* Update to noir_bignum v0.4.0 ([#10](https://github.com/madztheo/noir_bigcurve/issues/10)) ([3930699](https://github.com/madztheo/noir_bigcurve/commit/3930699251c55ebc45881536723a44faa3fd15ed))
+
+
+### Bug Fixes
+
+* Don't cast numbers to bool ([#51](https://github.com/madztheo/noir_bigcurve/issues/51)) ([349c60b](https://github.com/madztheo/noir_bigcurve/commit/349c60b77b7f769af73271036f2dd27eae78ae36))
+* Fix compilation failures and add ci ([f0bea83](https://github.com/madztheo/noir_bigcurve/commit/f0bea8352200bfd721a40357f801f007ee387767))
+* Issue with println formatting ([73df56a](https://github.com/madztheo/noir_bigcurve/commit/73df56a1bd0c06cd7f8adb49e5d7181e9118e5cb))
+* Make necessary items public ([#54](https://github.com/madztheo/noir_bigcurve/issues/54)) ([de513bb](https://github.com/madztheo/noir_bigcurve/commit/de513bbb2ebc6158d565b49b6f127a95fda7388c))
+* Update format strings to use new format ([#22](https://github.com/madztheo/noir_bigcurve/issues/22)) ([b8bd97c](https://github.com/madztheo/noir_bigcurve/commit/b8bd97c7510e9ea7303c8e8c16719dbb42374596))
+* Update Tests ([#13](https://github.com/madztheo/noir_bigcurve/issues/13)) ([e1f1c9c](https://github.com/madztheo/noir_bigcurve/commit/e1f1c9c985c29213b17d965266e4f30a67b59766))
+* Update to use poseidon library ([#44](https://github.com/madztheo/noir_bigcurve/issues/44)) ([b12d659](https://github.com/madztheo/noir_bigcurve/commit/b12d6594c650f08829463251c6c0064dc9a955c6))
+
+
+### Miscellaneous Chores
+
+* Bump bignum version to `v0.6.0` ([#40](https://github.com/madztheo/noir_bigcurve/issues/40)) ([630ca96](https://github.com/madztheo/noir_bigcurve/commit/630ca96be2eaf2ace1e087cf5bd251b86d2800bc))
+* Bump bignum version to 0.7.3 ([#49](https://github.com/madztheo/noir_bigcurve/issues/49)) ([4d48ebf](https://github.com/madztheo/noir_bigcurve/commit/4d48ebfb36c4681463eb67dbae807ecab413a094))
+
 ## [0.9.0](https://github.com/noir-lang/noir_bigcurve/compare/v0.8.0...v0.9.0) (2025-06-06)
 
 
