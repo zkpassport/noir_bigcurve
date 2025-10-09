@@ -2,11 +2,6 @@ use crate::BigCurve;
 use crate::curve_jac::CurveJ;
 
 use crate::curves::bn254::BN254;
-use crate::curves::brainpoolP192r1::BrainpoolP192r1_Params;
-use crate::curves::brainpoolP192t1::BrainpoolP192t1_Params;
-use crate::curves::brainpoolP224r1::BrainpoolP224r1_Params;
-use crate::curves::brainpoolP224t1::BrainpoolP224t1_Params;
-use crate::curves::secp224r1::Secp224r1_Params;
 use bignum::BigNum;
 use bignum::BN254_Fq;
 
