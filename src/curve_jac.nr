@@ -1,39 +1,43 @@
 use bignum::BigNum;
 
-use crate::BigCurve;
-use crate::CurveParamsTrait;
-use crate::scalar_field::{ScalarField, ScalarFieldTrait};
-/**
- * @brief CurveJ represents a Short Weierstrass elliptic curve using Jacobian coordinates.
- *        representation in Jacobian form is X, Y, Z
- *        representation in affine form is x, y
- *        relation between both is: x = X / Z^2  , y = Y / Z^3
- *
- * @description The purpose of this class is to speed up witness generation when optimally constraining ecc operations
- *              When constructing constraints, we want to work in AFFINE coordinates,
- *              because of the smaller number of field multiplications (3 muls vs ~14 for Jacobian)
- *              HOWEVER, when working in affine coordinates, 1 modular inverse must be computed per group operation.
- *              This is VERY TIME CONSUMING TO DO when generating witnesses, as this is a modular inverse over a non-native field.
- *              This costs approximately 2D multiplications, where D is the bit-width of the curve field.
- *
- *              To solve this problem, we perform the ENTIRE COMPUTATION in unconstrained functions using JACOBIAN coordiantes
- *              (which don't require inverses). We record each ECC op performed in a JTranscript object
- *              We then compute a Montgomery Batch Inverse to compute ALL of the inverses we require when evaluating using affine arithmetic.
- *              i.e. we compute 1 modular inverse instead of ~256 or 320 depending on the elliptic curve.
- *              Yes, this is an extremely complex solution to a simple problem. Such is life. Inverses are expensive to generate witnesses for.
- **/
-pub struct CurveJ<B, CurveParams> {
+use crate::scalar_field::ScalarField;
+use super::BigCurve;
+
+/// CurveJ represents a Short Weierstrass elliptic curve using Jacobian coordinates.
+///
+/// # Representation
+/// - **Jacobian form:** (X, Y, Z)
+/// - **Affine form:** (x, y)
+/// - **Relation:** x = X / Z^2, y = Y / Z^3
+///
+/// # Purpose
+/// This class is designed to speed up witness generation when optimally constraining elliptic curve operations.
+///
+/// # Motivation
+/// - Constraints are best constructed in affine coordinates due to fewer field multiplications (3 vs ~14 for Jacobian).
+/// - However, affine coordinates require one modular inverse per group operation, which is expensive over a non-native field (~2D multiplications, where D is the field bit-width).
+///
+/// # Solution
+/// - Perform all computations in unconstrained functions using Jacobian coordinates (no inverses required).
+/// - Record each ECC operation in a `JTranscript` object.
+/// - Use a Montgomery Batch Inverse to compute all required inverses at once when evaluating with affine arithmetic.
+/// - This reduces the number of modular inverses from ~256 or 320 (depending on the curve) to just one.
+///
+/// # Note
+/// This approach is complex but necessary due to the high cost of generating modular inverses for witness generation.
+pub struct CurveJ<B, BigCurve> {
     pub(crate) x: B,
     pub(crate) y: B,
     pub(crate) z: B,
     pub(crate) is_infinity: bool,
 }
 
-/**
- * @brief A transcript of a group operation in Jacobian coordinates
- * x3, y3, z3 = the output of the group operation
- * lambda_numerator = numerator of the `lambda` term (the denominator is assumed to be z3)
- **/
+/// A transcript of a group operation in Jacobian coordinates.
+///
+/// # Fields
+/// - `x3`, `y3`, `z3`: The output coordinates of the group operation in Jacobian form.
+/// - `lambda_numerator`: The numerator of the `lambda` term used in the group operation.
+///   (The denominator is assumed to be `z3`.)
 pub struct JTranscript<B> {
     pub(crate) lambda_numerator: B,
     pub(crate) x3: B,
@@ -50,23 +54,24 @@ where
     }
 }
 
-/**
- * @brief A transcript of a group operation in Affine coordinates
- * x3, y3 = the output of the group operation
- * lambda = gradient of the line that passes through input points of group operation
- * For addition, lambda = (y2 - y1) / (x2 - x1)
- * For doubling, lambda = (3 * x1 * x1) / (2 * y1)
- * If we have an array of JTranscript objects, we can turn them into AffineTranscript objects with only 1 modular inverse
- **/
+/// A transcript of a group operation in Affine coordinates.
+///
+/// # Fields
+/// - `x3`, `y3`: The output coordinates of the group operation.
+/// - `lambda`: The gradient of the line that passes through the input points of the group operation.
+///
+/// # Details
+/// - For addition: `lambda = (y2 - y1) / (x2 - x1)`
+/// - For doubling: `lambda = (3 * x1 * x1) / (2 * y1)`
+///
+/// # Optimization
+/// If you have an array of `JTranscript` objects, you can convert them into `AffineTranscript` objects using only one modular inverse.
 pub struct AffineTranscript<B> {
     pub(crate) lambda: B,
     pub(crate) x3: B,
     pub(crate) y3: B,
 }
 
-/**
- * @brief construct a sequence of AffineTranscript objects from a sequence of Jacobian transcript objects
- **/
 impl<B> AffineTranscript<B>
 where
     B: BigNum,
@@ -115,16 +120,16 @@ where
     }
 }
 
-/**
- * @brief A lookup table we use when performing scalar multiplications.
- * @description We slice scalar multiplier into 4 bit chunks represented
- * in windowed non-adjacent form ([-15, -13, ..., 15])
- * We compute a table of point multiples that map to the 4-bit WNAF values T = ([-15[P], -13[P], ..., 15[P]])
- * We set an accumulator to equal T[most significant WNAF slice]
- * We then iterate over our remaining bit slices (starting with most significant slice)
- * For each iteration `i` we double the accumulator 4 times and then add `T[slice[i]]` into the accumulator.
- * For small multiscalar multiplications (i.e. <512 points) this produces the minimal number of addition operations.
- **/
+/// A lookup table used for scalar multiplications using windowed non-adjacent form (WNAF).
+///
+/// The scalar multiplier is sliced into 4-bit chunks, each represented in WNAF (values in the range [-15, -13, ..., 15]).
+/// A table `T` is computed containing point multiples corresponding to these 4-bit WNAF values: `T = ([-15[P], -13[P], ..., 15[P]])`.
+///
+/// The accumulator is initialized with `T[most significant WNAF slice]`.
+/// For each remaining slice (starting from the most significant), the accumulator is doubled 4 times,
+/// then `T[slice[i]]` is added to the accumulator.
+///
+/// For small multiscalar multiplications (fewer than 512 points), this approach minimizes the number of addition operations.
 pub struct PointTable<B> {
     x: [B; 16],
     y: [B; 16],
@@ -152,9 +157,9 @@ where
      * [0, P, ..., 15P] requires 14 group operations.
      * group operations are expensive!
      **/
-    pub(crate) unconstrained fn new<CurveParams>(P: CurveJ<B, CurveParams>) -> Self
+    pub(crate) unconstrained fn new<Curve>(P: CurveJ<B, Curve>) -> Self
     where
-        CurveParams: CurveParamsTrait<B>,
+        Curve: BigCurve<B>,
     {
         let mut result = PointTable {
             x: [B::zero(); 16],
@@ -191,10 +196,7 @@ where
     /**
      * @brief get a value out of the lookup table
      **/
-    pub(crate) unconstrained fn get<CurveParams>(self, idx: u32) -> CurveJ<B, CurveParams>
-    where
-        CurveParams: CurveParamsTrait<B>,
-    {
+    pub(crate) unconstrained fn get<Curve>(self, idx: u32) -> CurveJ<B, Curve> {
         CurveJ { x: self.x[idx], y: self.y[idx], z: self.z[idx], is_infinity: false }
     }
 }
@@ -202,17 +204,17 @@ where
 /**
  * @brief construct from BigCurve
  **/
-impl<B, CurveParams> std::convert::From<BigCurve<B, CurveParams>> for CurveJ<B, CurveParams>
+impl<B, Curve> std::convert::From<Curve> for CurveJ<B, Curve>
 where
     B: BigNum,
-    CurveParams: CurveParamsTrait<B>,
+    Curve: BigCurve<B>,
 {
-    fn from(affine_point: BigCurve<B, CurveParams>) -> Self {
+    fn from(affine_point: Curve) -> Self {
         CurveJ {
-            x: affine_point.x,
-            y: affine_point.y,
+            x: affine_point.x(),
+            y: affine_point.y(),
             z: B::one(),
-            is_infinity: affine_point.is_infinity,
+            is_infinity: affine_point.is_infinity(),
         }
     }
 }
@@ -221,10 +223,10 @@ where
  * @brief are two Jacobian points equal?
  * @description only really used in tests for now.
  **/
-impl<B, CurveParams> std::cmp::Eq for CurveJ<B, CurveParams>
+impl<B, Curve> std::cmp::Eq for CurveJ<B, Curve>
 where
     B: BigNum,
-    CurveParams: CurveParamsTrait<B>,
+    Curve: BigCurve<B>,
 {
     fn eq(self, other: Self) -> bool {
         // if x == y then (X1 / Z1 * Z1 = X2 / Z2 * Z2)
@@ -257,10 +259,10 @@ where
     }
 }
 
-impl<B, CurveParams> CurveJ<B, CurveParams>
+impl<B, Curve> CurveJ<B, Curve>
 where
     B: BigNum,
-    CurveParams: CurveParamsTrait<B>,
+    Curve: BigCurve<B>,
 {
     /**
      * @brief negate a point
@@ -302,6 +304,7 @@ where
         let y_equal_predicate = S2.eq(S1);
         let lhs_infinity = self.is_infinity;
         let rhs_infinity = p2.is_infinity;
+
         let double_predicate =
             x_equal_predicate & y_equal_predicate & !lhs_infinity & !rhs_infinity;
         let add_predicate = !x_equal_predicate & !lhs_infinity & !rhs_infinity;
@@ -315,9 +318,13 @@ where
         } else if (infinity_predicate) {
             result = (CurveJ::point_at_infinity(), JTranscript::new());
         } else if (lhs_infinity & !rhs_infinity) {
-            result = (p2, JTranscript::new());
+            let new_transcript =
+                JTranscript { x3: p2.x, y3: p2.y, z3: p2.z, lambda_numerator: B::zero() };
+            result = (p2, new_transcript);
         } else if (rhs_infinity & !lhs_infinity) {
-            result = (self, JTranscript::new());
+            let new_transcript =
+                JTranscript { x3: self.x, y3: self.y, z3: self.z, lambda_numerator: B::zero() };
+            result = (self, new_transcript);
         }
         result
         // let (_, PP): (B, B ) = B::compute_quadratic_expression([[U2, U1]], [[false, true]], [[U2, U1]], [[false, true]], [], []);
@@ -438,7 +445,7 @@ where
         predicate: bool,
     ) -> (Self, JTranscript<B>) {
         let mut operand_output = self.incomplete_add(p2);
-        let result = CurveJ::conditional_select(operand_output.0, self, predicate);
+        let result = if predicate { operand_output.0 } else { self };
         (result, operand_output.1)
     }
     /**
@@ -467,9 +474,9 @@ where
             [],
         );
 
-        if (CurveParams::a().get_limb(0) != 0) {
+        if (Curve::a().get_limb(0) != 0) {
             let ZZ = Z1.__mul(Z1);
-            let AZZZZ = ZZ.__mul(ZZ).__mul(CurveParams::a());
+            let AZZZZ = ZZ.__mul(ZZ).__mul(Curve::a());
             XX_mul_3 = XX_mul_3.__add(AZZZZ);
         }
         let (_, D): (B, B) = bignum::bignum::compute_quadratic_expression(
@@ -512,27 +519,20 @@ where
     }
 
     pub(crate) fn offset_generator() -> Self {
-        let result = CurveParams::offset_generator();
-        Self { x: result[0], y: result[1], z: B::one(), is_infinity: false }
+        let result = Curve::offset_generator();
+        Self { x: result.x(), y: result.y(), z: B::one(), is_infinity: false }
     }
 
     pub(crate) fn offset_generator_final() -> Self {
-        let result = CurveParams::offset_generator_final();
-        Self { x: result[0], y: result[1], z: B::one(), is_infinity: false }
+        let result = Curve::offset_generator_final();
+        Self { x: result.x(), y: result.y(), z: B::one(), is_infinity: false }
     }
 
     pub(crate) fn one() -> Self {
-        let result = CurveParams::one();
-        Self { x: result[0], y: result[1], z: B::one(), is_infinity: false }
+        let result = Curve::one();
+        Self { x: result.x(), y: result.y(), z: B::one(), is_infinity: false }
     }
 
-    pub(crate) fn conditional_select(lhs: Self, rhs: Self, predicate: bool) -> Self {
-        let mut result = rhs;
-        if (predicate) {
-            result = lhs;
-        }
-        result
-    }
     /**
      * @brief Perform an ecc scalar multiplication and output the generated AffineTranscript
      **/
@@ -543,9 +543,11 @@ where
         let mut transcript: [JTranscript<B>; NScalarSlices * 5 + 6] =
             [JTranscript::new(); NScalarSlices * 5 + 6];
 
-        let input: Self = CurveJ::conditional_select(CurveJ::one(), self, self.is_infinity);
-        let scalar: ScalarField<NScalarSlices> =
-            ScalarField::conditional_select(ScalarField::zero(), scalar, self.is_infinity);
+        let (input, scalar) = if self.is_infinity {
+            (CurveJ::one(), ScalarField::zero())
+        } else {
+            (self, scalar)
+        };
         let mut ptr: u32 = 0;
         let T = PointTable::new(input);
         for i in 0..8 {
@@ -601,13 +603,13 @@ where
         let mut _inputs: [Self; Size] = [CurveJ::new(); Size];
         let mut _scalars: [ScalarField<NScalarSlices>; Size] = [ScalarField::zero(); Size];
         for i in 0..Size {
-            _inputs[i] =
-                CurveJ::conditional_select(CurveJ::one(), points[i], points[i].is_infinity);
-            _scalars[i] = ScalarField::conditional_select(
-                ScalarField::zero(),
-                scalars[i],
-                points[i].is_infinity,
-            );
+            let (input, scalar) = if points[i].is_infinity {
+                (CurveJ::one(), crate::scalar_field::ScalarField::zero())
+            } else {
+                (points[i], scalars[i])
+            };
+            _inputs[i] = input;
+            _scalars[i] = scalar;
         }
         let points = _inputs;
         let scalars = _scalars;
@@ -665,47 +667,49 @@ where
         mut points: [Self; Size],
         mut scalars: [ScalarField<NScalarSlices>; Size],
     ) -> (Self, [AffineTranscript<B>; NScalarSlices * Size + NScalarSlices * 4 + Size * 9 - 3]) {
-        let mut (accumulator, transcript): (Self, [JTranscript<B>; NScalarSlices * Size + NScalarSlices * 4 + Size * 9 - 3]) =
-            CurveJ::msm_partial(points, scalars);
-        let op = accumulator.sub(CurveJ::offset_generator_final());
-        transcript[73 * Size + 252] = op.1;
-        accumulator = op.0;
-        let affine_transcript: [AffineTranscript<B>; NScalarSlices * Size + NScalarSlices * 4 + Size * 9 - 3] =
-            AffineTranscript::from_jacobian_transcript(transcript);
+        let mut (accumulator, transcript)
+            : (Self, [JTranscript<B>; NScalarSlices * Size + NScalarSlices * 4 + Size * 9 - 3]) =
+                CurveJ::msm_partial(points, scalars);
+            let op = accumulator.sub(CurveJ::offset_generator_final());
+            transcript[73 * Size + 252] = op.1;
+            accumulator = op.0;
+            let affine_transcript: [AffineTranscript<B>; NScalarSlices * Size + NScalarSlices * 4 + Size * 9 - 3] =
+                AffineTranscript::from_jacobian_transcript(transcript);
 
-        (accumulator, affine_transcript)
-    }
+            (accumulator, affine_transcript)
+        }
 
     pub(crate) unconstrained fn compute_linear_expression_transcript<let NScalarSlices: u32, let NMuls: u32, let NAdds: u32>(
-        mut mul_points: [BigCurve<B, CurveParams>; NMuls],
+        mut mul_points: [Curve; NMuls],
         mut scalars: [ScalarField<NScalarSlices>; NMuls],
-        mut add_points: [BigCurve<B, CurveParams>; NAdds],
+        mut add_points: [Curve; NAdds],
     ) -> (Self, [AffineTranscript<B>; NScalarSlices * NMuls + NScalarSlices * 4 + NMuls * 9 + NAdds - 3]) {
-        let mut mul_j: [CurveJ<B, CurveParams>; NMuls] = [CurveJ::new(); NMuls];
-        let mut add_j: [CurveJ<B, CurveParams>; NAdds] = [CurveJ::new(); NAdds];
+        let mut mul_j: [CurveJ<B, Curve>; NMuls] = [CurveJ::new(); NMuls];
+        let mut add_j: [CurveJ<B, Curve>; NAdds] = [CurveJ::new(); NAdds];
         for i in 0..NMuls {
-            mul_j[i] = CurveJ::from(mul_points[i]);
+            mul_j[i] = CurveJ::<B, Curve>::from(mul_points[i]);
         }
         for i in 0..NAdds {
             add_j[i] = CurveJ::from(add_points[i]);
         }
 
-        let mut (accumulator, transcript): (Self, [JTranscript<B>; NScalarSlices * NMuls + NScalarSlices * 4 + NMuls * 9 + NAdds - 3]) =
-            CurveJ::msm_partial(mul_j, scalars);
-        let mut transcript_ptr: u32 = NScalarSlices * NMuls + NScalarSlices * 4 + NMuls * 9 - 4;
-        for i in 0..NAdds {
-            let op = accumulator.conditional_incomplete_add(add_j[i], !add_j[i].is_infinity);
+        let mut (accumulator, transcript)
+            : (Self, [JTranscript<B>; NScalarSlices * NMuls + NScalarSlices * 4 + NMuls * 9 + NAdds - 3]) =
+                CurveJ::msm_partial(mul_j, scalars);
+            let mut transcript_ptr: u32 = NScalarSlices * NMuls + NScalarSlices * 4 + NMuls * 9 - 4;
+            for i in 0..NAdds {
+                let op = accumulator.conditional_incomplete_add(add_j[i], !add_j[i].is_infinity);
+                transcript[transcript_ptr] = op.1;
+                accumulator = op.0;
+                transcript_ptr += 1;
+            }
+
+            let op = accumulator.sub(CurveJ::offset_generator_final());
             transcript[transcript_ptr] = op.1;
             accumulator = op.0;
-            transcript_ptr += 1;
+            let affine_transcript: [AffineTranscript<B>; NScalarSlices * NMuls + NScalarSlices * 4 + NMuls * 9 + NAdds - 3] =
+                AffineTranscript::from_jacobian_transcript(transcript);
+
+            (accumulator, affine_transcript)
         }
-
-        let op = accumulator.sub(CurveJ::offset_generator_final());
-        transcript[transcript_ptr] = op.1;
-        accumulator = op.0;
-        let affine_transcript: [AffineTranscript<B>; NScalarSlices * NMuls + NScalarSlices * 4 + NMuls * 9 + NAdds - 3] =
-            AffineTranscript::from_jacobian_transcript(transcript);
-
-        (accumulator, affine_transcript)
-    }
 }

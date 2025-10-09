@@ -1,152 +1,158 @@
 use bignum::BigNum;
 
-/**
- * @brief ScalarField represents a scalar multiplier as a sequence of 4-bit slices
- * @details There is nuance to ScalarField, because twisted edwards curves generally have prime group orders that easily fit into a Field
- *          We can therefore obtain cheap conversions by simply summing up the bit slices and validate they equal the input scalar
- *          However...when converting arbitrary field elements (i.e. scalars that are multiples of a TE curve group order),
- *          we must perform additional checks when converting into 4-bit slices, as we must validate that the sum of the slices is smaller than the Field modulus (when evaluated over the integers)
- *          This is expensive and we would rather not do it! therefore ScalarField<N> is flexible.
- *          ScalarField<63> enables cheap bitslice converions for scalar multipliers that must be <2^{252}
- *          ScalarField<64> enables bitslice conversions for arbitrary field elements
- *
- *          N.B. ScalarField bit values are not constrained to be smaller than the TE curve group order.
- *          ScalarField is used when performing scalar multiplications, where all operations wrap modulo the curve order
- **/
+/// Represents a scalar multiplier as a sequence of 4-bit slices.
+///
+/// # Overview
+/// `ScalarField` efficiently encodes scalars for twisted Edwards curve operations. Since these curves
+/// typically have prime group orders that fit within a field element, scalars can often be reconstructed
+/// from their 4-bit slices by summing the slices and verifying equality with the original scalar.
+///
+/// For arbitrary field elements (scalars that may be multiples of the curve's group order), additional
+/// validation is required. In these cases, the sum of the 4-bit slices, interpreted as an integer,
+/// must be less than the field modulus. This check is computationally expensive and avoided when possible.
+///
+/// The `ScalarField<N>` type is flexible:
+/// - `ScalarField<63>`: Efficient bitslice conversions for scalars less than 2^252.
+/// - `ScalarField<64>`: Supports bitslice conversions for arbitrary field elements.
+///
+/// **Note:** The bit values in `ScalarField` are not constrained to be less than the curve's group order.
+/// This type is intended for use in scalar multiplication, where all operations are performed modulo the
+/// curve order.
 pub struct ScalarField<let N: u32> {
     pub(crate) base4_slices: [u8; N],
     pub(crate) skew: bool,
 }
 
 // 1, 2, 3, 4
-unconstrained fn get_wnaf_slices<let N: u32>(x: Field) -> ([u8; N], bool) {
-    let mut result: [u8; N] = [0; N];
-    let mut nibbles = x.to_le_radix::<N>(16);
+unconstrained fn get_wnaf_slices<let N: u32>(x: Field) -> ScalarField<N> {
+    let mut base4_slices: [u8; N] = [0; N];
+    let bytes = x.to_le_bytes::<32>();
+    let mut nibbles: [u8; N] = [0; N];
+    nibbles = extract_nibbles_from_bytes(bytes);
 
     let skew: bool = nibbles[0] & 1 == 0;
-    nibbles[0] = nibbles[0] as u8 + (skew as u8);
-    result[N - 1] = (nibbles[0] + 15) / 2;
+    nibbles[0] = nibbles[0] + (skew as u8);
+    base4_slices[N - 1] = (nibbles[0] + 15) / 2;
+
     for i in 1..N {
         let mut nibble: u8 = nibbles[i];
-        result[N - 1 - i] = (nibble + 15) / 2;
+        base4_slices[N - 1 - i] = (nibble + 15) / 2;
         if (nibble & 1 == 0) {
-            result[N - 1 - i] += 1;
-            result[N - i] -= 8;
+            base4_slices[N - 1 - i] += 1;
+            base4_slices[N - i] -= 8;
         }
     }
 
-    (result, skew)
+    ScalarField { base4_slices, skew }
 }
 
-unconstrained fn get_wnaf_slices2<let N: u32, B>(x: B) -> ([u8; N], bool)
+unconstrained fn get_wnaf_slices2<let N: u32, B>(x: B) -> ScalarField<N>
 where
     B: BigNum,
 {
-    let mut result: [u8; N] = [0; N];
+    let mut base4_slices: [u8; N] = [0; N];
     let mut nibbles: [[u8; 30]; (N / 30) + 1] = [[0; 30]; (N / 30) + 1];
-    let x: [u128] = x.get_limbs().as_slice();
+    let x: [u128; _] = x.get_limbs();
     for i in 0..x.len() {
-        nibbles[i] = (x[i] as Field).to_le_radix::<30>(16);
+        let bytes = (x[i] as Field).to_le_bytes::<30>();
+        nibbles[i] = extract_nibbles_from_bytes(bytes);
     }
 
     let skew: bool = nibbles[0][0] & 1 == 0;
-    nibbles[0][0] = nibbles[0][0] as u8 + (skew as u8);
-    result[N - 1] = (nibbles[0][0] + 15) / 2;
+    nibbles[0][0] = nibbles[0][0] + (skew as u8);
+    base4_slices[N - 1] = (nibbles[0][0] + 15) / 2;
 
     for i in 1..N {
         let major_index = i / 30;
         let minor_index = i % 30;
         let mut nibble: u8 = nibbles[major_index][minor_index];
-        result[N - 1 - i] = (nibble + 15) / 2;
+        base4_slices[N - 1 - i] = (nibble + 15) / 2;
         if (nibble & 1 == 0) {
-            result[N - 1 - i] += 1;
-            result[N - i] -= 8;
+            base4_slices[N - 1 - i] += 1;
+            base4_slices[N - i] -= 8;
         }
     }
 
-    (result, skew)
+    ScalarField { base4_slices, skew }
 }
 
-// unconstrained fn get_modulus_slices() -> (Field, Field) {
-//     let bytes = std::field::modulus_be_bytes();
-//     let num_bytes = (std::field::modulus_num_bits() / 8) + ((std::field::modulus_num_bits() % 8 != 0) as u64);
-//     let mut lo: Field = 0;
-//     let mut hi: Field = 0;
-//     for i in 0..(num_bytes / 2) {
-//         hi *= 256;
-//         hi += bytes[i] as Field;
-//         lo *= 256;
-//         lo += bytes[i + (num_bytes/2)] as Field;
-//     }
-//     if (num_bytes & 1 == 1) {
-//         lo *= 256;
-//         lo += bytes[num_bytes - 1] as Field;
-//     }
-//     (lo, hi)
-// }
+fn get_modulus_slices<let N: u32>() -> [u8; N] {
+    let mut expected_slices: [u8; N] = [0; N];
 
-// unconstrained fn get_borrow_flag(lhs_lo: Field, rhs_lo: Field) -> bool {
-//     lhs_lo.lt(rhs_lo + 1)
-// }
+    if N == 64 {
+        let slice: [u8; 64] = [
+            9, 8, 3, 2, 2, 7, 3, 9, 7, 0, 9, 8, 13, 0, 1, 4, 13, 12, 2, 8, 2, 2, 13, 11, 4, 0, 12,
+            0, 10, 12, 2, 14, 9, 4, 1, 9, 15, 4, 2, 4, 3, 12, 13, 12, 11, 8, 4, 8, 10, 1, 15, 0, 15,
+            10, 12, 9, 15, 8, 0, 0, 0, 0, 0, 0,
+        ];
+        for i in 0..N {
+            expected_slices[i] = slice[i];
+        }
+    } else if N == 65 {
+        let slice: [u8; 65] = [
+            8, 1, 8, 3, 2, 2, 7, 3, 9, 7, 0, 9, 8, 13, 0, 1, 4, 13, 12, 2, 8, 2, 2, 13, 11, 4, 0,
+            12, 0, 10, 12, 2, 14, 9, 4, 1, 9, 15, 4, 2, 4, 3, 12, 13, 12, 11, 8, 4, 8, 10, 1, 15, 0,
+            15, 10, 12, 9, 15, 8, 0, 0, 0, 0, 0, 0,
+        ];
+        for i in 0..N {
+            expected_slices[i] = slice[i];
+        }
+    } else if N > 65 {
+        // For N > 65, we need to insert zeros at the beginning
+        let num_zeros = N - 65;
+        expected_slices[0] = 8;
+        for i in 1..num_zeros + 1 {
+            expected_slices[i] = 0;
+        }
+        let slice: [u8; 65] = [
+            8, 1, 8, 3, 2, 2, 7, 3, 9, 7, 0, 9, 8, 13, 0, 1, 4, 13, 12, 2, 8, 2, 2, 13, 11, 4, 0,
+            12, 0, 10, 12, 2, 14, 9, 4, 1, 9, 15, 4, 2, 4, 3, 12, 13, 12, 11, 8, 4, 8, 10, 1, 15, 0,
+            15, 10, 12, 9, 15, 8, 0, 0, 0, 0, 0, 0,
+        ];
+        for i in num_zeros + 1..N {
+            expected_slices[i] = slice[i - num_zeros];
+        }
+    }
+    expected_slices
+}
+
+fn compare_scalar_field_to_bignum<let N: u32>(result: ScalarField<N>) {
+    let expected_slices: [u8; N] = get_modulus_slices::<N>();
+
+    // Lexicographic comparison: stop when we find a strictly smaller number
+    let mut should_continue: bool = true;
+    for i in 0..N {
+        if should_continue {
+            if result.base4_slices[i] < expected_slices[i] {
+                // Found a strictly smaller number, we can stop - this is valid
+                should_continue = false;
+            } else if result.base4_slices[i] > expected_slices[i] {
+                // Found a strictly larger number, this is invalid
+                panic(f"Reconstructed number is greater than modulus");
+            }
+            // If equal, continue to the next element (should_continue remains true)
+        }
+    }
+}
 
 impl<let N: u32> std::convert::From<Field> for ScalarField<N> {
 
-    /**
-     * @brief construct from a field element
-     * @details if N >= 64 we perform extra checks to ensure the slice decomposition represents the same integral value as the input
-     *          (e.g. sum of slices != x + modulus)
-     **/
-    fn from(x: Field) -> Self {
-        let mut result: Self = ScalarField { base4_slices: [0; N], skew: false };
-        let (slices, skew): ([u8; N], bool) = unsafe { get_wnaf_slices(x) };
-        result.base4_slices = slices;
-        result.skew = skew;
-        if (N < 64) {
-            let mut acc: Field = (slices[0] as Field) * 2 - 15;
-            for i in 1..N {
-                acc *= 16;
-                acc += (slices[i] as Field) * 2 - 15;
+    /// Constructs an instance from a field element.
+    fn from(input: Field) -> Self {
+        let result = unsafe { get_wnaf_slices(input) };
+
+        if !std::runtime::is_unconstrained() {
+            // Enforce that limbs are all 4 bits.
+            for i in 0..N {
+                (result.base4_slices[i] as Field).assert_max_bit_size::<4>();
             }
-            assert(acc - skew as Field == x);
-        } else {
-            // TODO fix! this does not work because we are assuming N slices is smaller than 256 bits
-            // let mut lo: Field = slices[(N / 2)] as Field * 2 - 15;
-            // let mut hi: Field = slices[0] as Field * 2 - 15;
-            // let mut borrow_shift = 1;
-            // for i in 1..(N / 2) {
-            //     borrow_shift *= 16;
-            //     lo *= 16;
-            //     lo += (slices[(N/2) + i] as Field) * 2 - 15;
-            //     hi *= 16;
-            //     hi += (slices[i] as Field) * 2 - 15;
-            // }
-            // if ((N & 1) == 1) {
-            //     borrow_shift *= 16;
-            //     lo *= 16;
-            //     lo += (slices[N-1] as Field) * 2 - 15;
-            // }
-            // // 0x30644e72e131a029b85045b68181585d2833e84879b9709143e1f593efffffff
-            // // 0x2833e84879b9709143e1f593f0000001
-            // // 0x8833e84879b9709143e1f593efffffff
-            // lo -= skew as Field;
-            // // Validate that the integer represented by (lo, hi) is smaller than the integer represented by (plo, phi)
-            // let (plo, phi) = unsafe {
-            //     get_modulus_slices()
-            // };
-            // let borrow = unsafe {
-            //     get_borrow_flag(plo, lo) as Field
-            // };
-            // let rlo = plo - lo + borrow * borrow_shift - 1; // -1 because we are checking a strict <, not <=
-            // let rhi = phi - hi - borrow;
-            // let offset = (N & 1 == 1) as u32;
-            // let hibits = (N / 2) * 4;
-            // let lobits = hibits + offset * 4 + 1; // 1 extra bit to account for borrow
-            // // 0x013833e84879b9709143e1f593f0000000
-            // // rlo.assert_max_bit_size(lobits as u32);
-            // // rhi.assert_max_bit_size(hibits as u32);
-        }
-        for i in 0..N {
-            (result.base4_slices[i] as Field).assert_max_bit_size::<4>();
+
+            // Enforce consistency with `input`.
+            let reconstructed_input: Field = result.into();
+            assert_eq(reconstructed_input, input);
+            if N >= 64 {
+                compare_scalar_field_to_bignum(result);
+            }
         }
         result
     }
@@ -158,6 +164,12 @@ impl<let N: u32> std::convert::Into<Field> for ScalarField<N> {
      * @details use this method instead of `new` if you know x/y is on the curve
      **/
     fn into(self: Self) -> Field {
+        // TODO: This is susceptible to overflow when N is large!
+        if !std::runtime::is_unconstrained() {
+            if N >= 64 {
+                compare_scalar_field_to_bignum(self);
+            }
+        }
         let mut acc: Field = 0;
         for i in 0..N {
             acc = acc * 16;
@@ -168,53 +180,64 @@ impl<let N: u32> std::convert::Into<Field> for ScalarField<N> {
     }
 }
 
-pub trait ScalarFieldTrait {
-    fn zero() -> Self;
-    fn conditional_select(lhs: Self, rhs: Self, predicate: bool) -> Self;
-    fn from_bignum<B>(x: B) -> Self
-    where
-        B: BigNum;
-    fn into_bignum<B>(self) -> B
-    where
-        B: BigNum;
-    fn new() -> Self;
-    fn get(self, idx: u32) -> u8;
-    fn len(self) -> u32;
-}
-
-impl<let N: u32> ScalarFieldTrait for ScalarField<N> {
-
-    fn len(_: Self) -> u32 {
+impl<let N: u32> ScalarField<N> {
+    pub fn len(_: Self) -> u32 {
         N
     }
-    fn zero() -> Self {
-        let mut result: Self = ScalarField { base4_slices: [0; N], skew: true };
 
+    pub fn zero() -> Self {
+        let mut result: Self = ScalarField { base4_slices: [0; N], skew: true };
         result.base4_slices[0] = 8; // 8 = numeric value of 1, 0 = numeric value of -15
         result
     }
 
-    fn conditional_select(lhs: Self, rhs: Self, predicate: bool) -> Self {
-        let mut result = rhs;
-        if (predicate) {
-            result = lhs;
-        }
-        result
-    }
-
     // Note: I can't propagate ModulusBits or NumLimbs from a generic that satisfies BigNum due to bugs, so we have to pass NumLimbs and Params in directly. disgusting!
-    fn from_bignum<B>(x: B) -> Self
+    pub fn from_bignum<B>(x: B) -> Self
     where
         B: BigNum,
     {
         x.validate_in_field();
-        let mut (slices, skew): ([u8; N], bool) = unsafe { get_wnaf_slices2(x) };
-
-        // TODO: NONE OF THIS IS CONSTRAINED YET. FIX!
+        // Safety: separate verification
+        let mut slices_result = unsafe { get_wnaf_slices2(x) };
+        let mut slices = slices_result.base4_slices;
+        let skew = slices_result.skew;
+        for i in 0..N {
+            (slices[i] as Field).assert_max_bit_size::<4>();
+        }
+        let mut result = B::zero();
+        let mut count: u32 = 0;
+        {
+            let mut acc: u128 = 0;
+            let mut last_bits = (result.modulus_bits() % 120) as u64;
+            if (last_bits == 0) {
+                last_bits = 120;
+            }
+            let mut last_nibbles = (last_bits / 4) + 1 as u64;
+            for _ in 0..last_nibbles {
+                acc = acc * 16;
+                acc = acc + (slices[count] as u128) * 2 - 15;
+                count = count + 1;
+            }
+            result.set_limb(result.num_limbs() - 1, acc);
+        }
+        for i in 1..result.num_limbs() {
+            // Using a Field type to allow for negative numbers.
+            let mut acc: Field = 0;
+            for _ in 0..30 {
+                acc = acc * 16;
+                acc = acc + (slices[count] as Field) * 2 - 15;
+                count = count + 1;
+            }
+            // Handle overflow using helper function
+            let acc_u128 = handle_overflow::<B>(acc, &mut result, i);
+            result.set_limb(result.num_limbs() - 1 - i, acc_u128);
+        }
+        result.set_limb(0, result.get_limb(0) - skew as u128);
+        assert(result == x);
         Self { base4_slices: slices, skew }
     }
 
-    fn into_bignum<B>(self) -> B
+    pub fn into_bignum<B>(self) -> B
     where
         B: BigNum,
     {
@@ -226,7 +249,7 @@ impl<let N: u32> ScalarFieldTrait for ScalarField<N> {
             if (last_bits == 0) {
                 last_bits = 120;
             }
-            let mut last_nibbles = (last_bits / 4) + (last_bits % 4 != 0) as u64;
+            let mut last_nibbles = (last_bits / 4) + 1 as u64;
             for _ in 0..last_nibbles {
                 acc = acc * 16;
                 acc = acc + (self.base4_slices[count] as u128) * 2 - 15;
@@ -235,29 +258,158 @@ impl<let N: u32> ScalarFieldTrait for ScalarField<N> {
             result.set_limb(result.num_limbs() - 1, acc);
         }
         for i in 1..result.num_limbs() {
-            let mut acc: u128 = 0;
+            // Using a Field type to allow for negative numbers.
+            let mut acc: Field = 0;
             for _ in 0..30 {
                 acc = acc * 16;
-                acc = acc + (self.base4_slices[count] as u128) * 2 - 15;
+                acc = acc + (self.base4_slices[count] as Field) * 2 - 15;
                 count = count + 1;
             }
-            if acc >= 0x1000000000000000000000000000000 {
-                acc += 0x1000000000000000000000000000000;
-                result.set_limb(
-                    result.num_limbs() - i,
-                    result.get_limb((result.num_limbs() - i)) - 1,
-                );
-            }
-            result.set_limb(result.num_limbs() - 1 - i, acc);
+            // Handle overflow using helper function
+            let acc_u128 = handle_overflow::<B>(acc, &mut result, i);
+            result.set_limb(result.num_limbs() - 1 - i, acc_u128);
         }
         result.set_limb(0, result.get_limb(0) - self.skew as u128);
         result
     }
 
-    fn new() -> Self {
+    pub fn new() -> Self {
         Self { base4_slices: [0; N], skew: false }
     }
-    fn get(self, idx: u32) -> u8 {
+
+    pub fn get(self, idx: u32) -> u8 {
         self.base4_slices[idx]
     }
+}
+
+pub(crate) unconstrained fn extract_nibbles_from_bytes<let N: u32, let M: u32>(
+    bytes: [u8; M],
+) -> [u8; N] {
+    let mut result: [u8; N] = [0; N];
+    let mut nibble_idx = 0;
+
+    for i in 0..M {
+        if nibble_idx >= N {
+            break;
+        }
+        // Extract low nibble (bits 0-3)
+        result[nibble_idx] = bytes[i] & 0x0F;
+        nibble_idx += 1;
+
+        if nibble_idx >= N {
+            break;
+        }
+        // Extract high nibble (bits 4-7)
+        result[nibble_idx] = (bytes[i] >> 4);
+        nibble_idx += 1;
+    }
+
+    result
+}
+
+// Helper function to handle overflow in wNAF reconstruction
+fn handle_overflow<B: BigNum>(acc: Field, result: &mut B, limb_index: u32) -> u128 {
+    let mut acc_u128: u128 = acc as u128;
+
+    // Handle negative numbers. If the number is negative, it is greater than 2^120 in Field.
+    // All positive numbers are less than 2^120 in Field.
+    // For example, 42 is -6 + 3 * 2^4 with wnaf algorithm, but it should be 42 = 10 + 2 * 2^4
+    // To get the actual number 10, we need to subtract the number 6 from 2^4.
+    if acc_u128 >= 0x1000000000000000000000000000000 {
+        // find the actual number needed to be subtracted.
+        let reverse = (acc * -1) as u128;
+        acc_u128 = (1 as u128 << 120) - reverse;
+        result.set_limb(
+            result.num_limbs() - limb_index,
+            result.get_limb(result.num_limbs() - limb_index) - 1,
+        );
+    }
+    acc_u128
+}
+
+mod tests {
+    use crate::scalar_field::get_modulus_slices;
+    use crate::scalar_field::ScalarField;
+    #[test]
+    // test even number of nibbles
+    unconstrained fn fuzz_test_scalar_field_conversion(f: Field) {
+        let scalar_field: ScalarField<64> = ScalarField::from(f);
+        let scalar_field2 = scalar_field.into();
+        assert(f == scalar_field2);
+    }
+    #[test]
+    // test odd number of nibbles
+    unconstrained fn fuzz_test_scalar_field_conversion2(f: u128) {
+        // 2^124 -1, 31 nibbles
+        let mask_124: u128 = 0x10000000000000000000000000000000 - 1;
+        let val: u128 = f & mask_124;
+        let scalar_field: ScalarField<31> = ScalarField::from(val as Field);
+        let scalar_field2 = scalar_field.into();
+        assert(val as Field == scalar_field2);
+    }
+    #[test]
+    unconstrained fn test_get_modulus_slices() {
+        let modulus_slices: [u8; 64] = get_modulus_slices::<64>();
+        assert(
+            modulus_slices
+                == [
+                    9, 8, 3, 2, 2, 7, 3, 9, 7, 0, 9, 8, 13, 0, 1, 4, 13, 12, 2, 8, 2, 2, 13, 11, 4,
+                    0, 12, 0, 10, 12, 2, 14, 9, 4, 1, 9, 15, 4, 2, 4, 3, 12, 13, 12, 11, 8, 4, 8,
+                    10, 1, 15, 0, 15, 10, 12, 9, 15, 8, 0, 0, 0, 0, 0, 0,
+                ],
+        );
+        let modulus_slices2: [u8; 65] = get_modulus_slices::<65>();
+        assert(
+            modulus_slices2
+                == [
+                    8, 1, 8, 3, 2, 2, 7, 3, 9, 7, 0, 9, 8, 13, 0, 1, 4, 13, 12, 2, 8, 2, 2, 13, 11,
+                    4, 0, 12, 0, 10, 12, 2, 14, 9, 4, 1, 9, 15, 4, 2, 4, 3, 12, 13, 12, 11, 8, 4, 8,
+                    10, 1, 15, 0, 15, 10, 12, 9, 15, 8, 0, 0, 0, 0, 0, 0,
+                ],
+        );
+        let modulus_slices3: [u8; 68] = get_modulus_slices::<68>();
+        assert(
+            modulus_slices3
+                == [
+                    8, 0, 0, 0, 1, 8, 3, 2, 2, 7, 3, 9, 7, 0, 9, 8, 13, 0, 1, 4, 13, 12, 2, 8, 2, 2,
+                    13, 11, 4, 0, 12, 0, 10, 12, 2, 14, 9, 4, 1, 9, 15, 4, 2, 4, 3, 12, 13, 12, 11,
+                    8, 4, 8, 10, 1, 15, 0, 15, 10, 12, 9, 15, 8, 0, 0, 0, 0, 0, 0,
+                ],
+        );
+    }
+    #[test(should_fail_with = "Reconstructed number is greater than modulus")]
+    fn test_get_modulus_slices_fail_64() {
+        //13th nibble is 14, which is greater than the modulus
+        let modulus_slices: [u8; 64] = [
+            9, 8, 3, 2, 2, 7, 3, 9, 7, 0, 9, 8, 14, 0, 1, 4, 13, 12, 2, 8, 2, 2, 13, 11, 4, 0, 12,
+            0, 10, 12, 2, 14, 9, 4, 1, 9, 15, 4, 2, 4, 3, 12, 13, 12, 11, 8, 4, 8, 10, 1, 15, 0, 15,
+            10, 12, 9, 15, 8, 0, 0, 0, 0, 0, 0,
+        ];
+        let mut result: ScalarField<64> = ScalarField { base4_slices: modulus_slices, skew: true };
+        let _ = result.into();
+    }
+    #[test(should_fail_with = "Reconstructed number is greater than modulus")]
+    fn test_get_modulus_slices_fail_65() {
+        //modulus slice represents a number that is greater than the modulus
+        let modulus_slices2 = [
+            8, 1, 8, 3, 2, 2, 7, 3, 10, 8, 0, 9, 8, 13, 0, 1, 4, 13, 12, 2, 8, 2, 2, 13, 11, 4, 0,
+            12, 0, 10, 12, 2, 14, 9, 4, 1, 9, 15, 4, 2, 4, 3, 12, 13, 12, 11, 8, 4, 8, 10, 1, 15, 0,
+            15, 10, 12, 9, 15, 8, 0, 0, 0, 0, 0, 0,
+        ];
+        let mut result: ScalarField<65> = ScalarField { base4_slices: modulus_slices2, skew: true };
+        let _ = result.into();
+    }
+
+    #[test(should_fail_with = "Reconstructed number is greater than modulus")]
+    fn test_get_modulus_slices_fail_68() {
+        //modulus slice represents a number that is greater than the modulus
+        let modulus_slices3 = [
+            8, 0, 0, 0, 2, 8, 3, 2, 2, 7, 3, 9, 7, 0, 9, 8, 13, 0, 1, 4, 13, 12, 2, 8, 2, 2, 13, 11,
+            4, 0, 12, 0, 10, 12, 2, 14, 9, 4, 1, 9, 15, 4, 2, 4, 3, 12, 13, 12, 11, 8, 4, 8, 10, 1,
+            15, 0, 15, 10, 12, 9, 15, 8, 0, 0, 0, 0, 0, 0,
+        ];
+        let mut result: ScalarField<68> = ScalarField { base4_slices: modulus_slices3, skew: true };
+        let _ = result.into();
+    }
+
 }
