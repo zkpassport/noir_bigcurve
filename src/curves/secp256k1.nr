@@ -1,10 +1,11 @@
-use crate::BigCurveParams;
-use crate::derive_curve_impl;
-use crate::scalar_field::ScalarField;
-use bignum::BigNum;
-use bignum::Secp256k1_Fq;
+use dep::bignum::BigNum;
+use dep::bignum::Secp256k1_Fq;
 
-use crate::BigCurve;
+use crate::bigcurve::BigCurve;
+use crate::bigcurve::BigCurveParams;
+use crate::bigcurve::derive_curve_impl;
+use crate::scalar_field::ScalarField;
+
 pub global SECP256k1_SCALAR_SLICES: u32 = 65;
 
 pub global SECP256k1_PARAM: BigCurveParams<Secp256k1_Fq> = BigCurveParams {
@@ -25,7 +26,7 @@ pub global SECP256k1_PARAM: BigCurveParams<Secp256k1_Fq> = BigCurveParams {
     offset_generator: [
         Secp256k1_Fq::from_limbs([
             0x7f497cc0b274831d60a9a05d29677e,
-            0x08726557bf1dd4a0bfdc80ba0f6f13,
+            0x8726557bf1dd4a0bfdc80ba0f6f13,
             0x9046,
         ]),
         Secp256k1_Fq::from_limbs([
@@ -61,7 +62,7 @@ mod test {
     use bignum::{BigNum, Secp256k1_Fq, Secp256k1_Fr};
     use std::ops::Neg;
 
-    use crate::BigCurve;
+    use crate::bigcurve::BigCurve;
 
     use super::{Secp256k1, SECP256k1_SCALAR_SLICES, Secp256k1Scalar};
 
@@ -109,10 +110,10 @@ mod test {
         assert(result.is_infinity);
     }
 
-    #[test(should_fail)]
+    #[test]
     unconstrained fn verify_offset_generators() {
         // Secp256k1 cofactor is 1
-        crate::utils::derive_offset_generators::verify_offset_generators::<Secp256k1_Fq, Secp256k1>(
+        crate::utils::derive_offset_generators::verify_offset_generators::<Secp256k1_Fq, SECP256k1_SCALAR_SLICES, Secp256k1>(
             1,
         );
     }

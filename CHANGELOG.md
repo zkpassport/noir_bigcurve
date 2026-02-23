@@ -1,5 +1,51 @@
 # Changelog
 
+## [0.13.2](https://github.com/noir-lang/noir_bigcurve/compare/v0.13.1...v0.13.2) (2026-02-20)
+
+
+### Features
+
+* Update dependency versions for bignum and poseidon ([#109](https://github.com/noir-lang/noir_bigcurve/issues/109)) ([f116f40](https://github.com/noir-lang/noir_bigcurve/commit/f116f404ea2645ca84d92be1bf3d2a17b492a924))
+
+## [0.13.1](https://github.com/noir-lang/noir_bigcurve/compare/v0.13.0...v0.13.1) (2026-02-19)
+
+
+### Bug Fixes
+
+* Update dependencies ([#107](https://github.com/noir-lang/noir_bigcurve/issues/107)) ([f4de268](https://github.com/noir-lang/noir_bigcurve/commit/f4de26856d17ff4a1e2479e2e496293ed0dfedfe))
+
+## [0.13.0](https://github.com/noir-lang/noir_bigcurve/compare/v0.12.0...v0.13.0) (2026-02-06)
+
+
+### ⚠ BREAKING CHANGES
+
+* update dependencies and bump CI Noir version ([#102](https://github.com/noir-lang/noir_bigcurve/issues/102))
+
+### Bug Fixes
+
+* Enforce correctness of generator points ([#104](https://github.com/noir-lang/noir_bigcurve/issues/104)) ([e834c82](https://github.com/noir-lang/noir_bigcurve/commit/e834c82a1f10521ae29b839b589e3645f7a1b30e))
+
+
+### Miscellaneous Chores
+
+* Update dependencies and bump CI Noir version ([#102](https://github.com/noir-lang/noir_bigcurve/issues/102)) ([44064d0](https://github.com/noir-lang/noir_bigcurve/commit/44064d02f7c1e036751c9756b0b50a3704cd02e3))
+
+## [0.12.0](https://github.com/noir-lang/noir_bigcurve/compare/v0.11.0...v0.12.0) (2025-11-14)
+
+
+### ⚠ BREAKING CHANGES
+
+* update bignum dependency to version 0.8.2 ([#95](https://github.com/noir-lang/noir_bigcurve/issues/95))
+
+### Bug Fixes
+
+* Add `ScalarField` WNAF validation for `N >= 64` ([#80](https://github.com/noir-lang/noir_bigcurve/issues/80)) ([c13415f](https://github.com/noir-lang/noir_bigcurve/commit/c13415f175bfe938c8507943a37180e972a6c9ce))
+
+
+### Miscellaneous Chores
+
+* Update bignum dependency to version 0.8.2 ([#95](https://github.com/noir-lang/noir_bigcurve/issues/95)) ([cecb6b6](https://github.com/noir-lang/noir_bigcurve/commit/cecb6b62b85be0907e85c13411d8359c797f0d7f))
+
 ## [0.11.0](https://github.com/noir-lang/noir_bigcurve/compare/v0.10.0...v0.11.0) (2025-08-14)
 
 

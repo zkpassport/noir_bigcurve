@@ -1,10 +1,12 @@
-use crate::BigCurve;
-use crate::BigCurveParams;
-use crate::curve_jac::CurveJ;
-use crate::derive_curve_impl;
+use dep::bignum::BigNum;
+pub use dep::bignum::BN254_Fq;
+
+use crate::bigcurve::BigCurve;
+use crate::bigcurve::BigCurveParams;
+use crate::bigcurve::derive_curve_impl;
 use crate::scalar_field::ScalarField;
-use bignum::BigNum;
-pub use bignum::BN254_Fq;
+
+use crate::curve_jac::types::CurveJ;
 
 pub global BN254_PARAMS: BigCurveParams<BN254_Fq> = BigCurveParams {
     a: BN254_Fq::from_limbs([0x00, 0x00, 0x00]),
@@ -48,7 +50,7 @@ pub struct BN254 {
 }
 
 mod test {
-    use crate::BigCurve;
+    use crate::bigcurve::BigCurve;
     use bignum::{BigNum, BN254_Fq};
     use std::ops::Neg;
 
@@ -99,7 +101,9 @@ mod test {
     #[test]
     unconstrained fn verify_offset_generators() {
         // BN254 cofactor is 1
-        crate::utils::derive_offset_generators::verify_offset_generators::<BN254_Fq, BN254>(1);
+        crate::utils::derive_offset_generators::verify_offset_generators::<BN254_Fq, BN254_SCALAR_SLICES, BN254>(
+            1,
+        );
     }
 
     #[test]
