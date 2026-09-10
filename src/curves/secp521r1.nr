@@ -1,9 +1,10 @@
-use crate::BigCurve;
-use crate::BigCurveParams;
-use crate::derive_curve_impl;
-use crate::scalar_field::ScalarField;
 use bignum::BigNum;
 pub use bignum::{Secp521r1_Fq, Secp521r1_Fr};
+
+use crate::bigcurve::BigCurve;
+use crate::bigcurve::BigCurveParams;
+use crate::bigcurve::derive_curve_impl;
+use crate::scalar_field::ScalarField;
 
 pub global SECP521r1_PARAM: BigCurveParams<Secp521r1_Fq> = BigCurveParams {
     a: Secp521r1_Fq::from_limbs([
@@ -25,7 +26,7 @@ pub global SECP521r1_PARAM: BigCurveParams<Secp521r1_Fq> = BigCurveParams {
             0x48b3c1856a429bf97e7e31c2e5bd66,
             0x5e77efe75928fe1dc127a2ffa8de33,
             0x39053fb521f828af606b4d3dbaa14b,
-            0x404e9cd9e3ecb662395b4429c6481,
+            0x0404e9cd9e3ecb662395b4429c6481,
             0xc6858e06b7,
         ]),
         Secp521r1_Fq::from_limbs([
@@ -38,34 +39,34 @@ pub global SECP521r1_PARAM: BigCurveParams<Secp521r1_Fq> = BigCurveParams {
     ],
     offset_generator: [
         Secp521r1_Fq::from_limbs([
-            0x556e6521a2e048b585bd4221787414,
-            0xd054f5d5317edea39eac7c0cdc4338,
-            0x1317c4d27d768ef84cbe5b656be8c7,
-            0x1f171c2c85cf6432bc4cc735794aff,
-            0x019239eeece5,
+            0x33601ec928a49428bd42bfd3e617a5,
+            0xf7893350b9f5675365ff188b60a88f,
+            0x50c21d3f20da3b152d35ab8cd4c232,
+            0x6fad54e41d6c7f2401aadff545a0c0,
+            0x0179ea30209a,
         ]),
         Secp521r1_Fq::from_limbs([
-            0x7a162ee85cbddff40688824e850caa,
-            0xcf8f5428560f64e195da7cdcceb42a,
-            0x36d91a939cab0b7cb093f4f586ff4a,
-            0xc05642261499a58d74752ac95a0058,
-            0x0145ca767742,
+            0x62b1ee3215a9e0f6716d3246df80cc,
+            0x141a855a1eb15473d679aa7e6639bb,
+            0x353f28185fafbcfac08d8a542676d6,
+            0x2ca698111831b8f871e158b6ac75,
+            0x0113caf1fcb8,
         ]),
     ],
     offset_generator_final: [
         Secp521r1_Fq::from_limbs([
-            0xb483f5efbac1cf69bca8bddc4dc26e,
-            0x02ad53022131b99528a619ead7e675,
-            0xd1889b76dfdd29015488507df6ad3b,
-            0x2f876099900e5e458a3c978bef39be,
-            0x01260121e9f4,
+            0xebdc2655240109f6049d0dce09d015,
+            0x96e62cabb84212e4895a786c77c13e,
+            0xdb1aea5b997aaaebfb77697740cac8,
+            0x02e23bb06c5ceb3496ea4c111fa08b,
+            0x2f484c4190,
         ]),
         Secp521r1_Fq::from_limbs([
-            0xedccb160310b14dae3a8faf4550e8a,
-            0x106d88c2d6a0a6f50d6609bc7e1a80,
-            0x053a8d8f0a56d8b08ae5482fdf2206,
-            0x84659f411d8392905aa718aa9b36c0,
-            0xb281ae4c0d,
+            0x30dcd5187b8a391d3303ec43936bd6,
+            0xba8713179618a4f38f95d8a1fe2f23,
+            0x6ffda93a5b220f1c880b38e84be4d8,
+            0x7201361e3c650d985689ce9940fd03,
+            0x09e8754f07,
         ]),
     ],
 };
@@ -84,10 +85,9 @@ mod test {
     use bignum::{BigNum, Secp521r1_Fq, Secp521r1_Fr};
     use std::ops::Neg;
 
-    use crate::BigCurve;
-    use super::Secp521r1;
-    use super::SECP521r1_SCALAR_SLICES;
-    use super::Secp521r1Scalar;
+    use crate::bigcurve::BigCurve;
+
+    use super::{Secp521r1, SECP521r1_SCALAR_SLICES, Secp521r1Scalar};
 
     #[test]
     fn check_num_scalar_slices_in_scalar_field() {
@@ -122,15 +122,23 @@ mod test {
         let p_minus_4 = Secp521r1Scalar::from_bignum(p_minus_4_fr);
         let p_minus_5_fr = p_minus_4_fr - Secp521r1_Fr::one();
         let p_minus_5 = Secp521r1Scalar::from_bignum(p_minus_5_fr);
-        let mut scalars = [p_minus_4, p_minus_5];
+        let scalars = [p_minus_4, p_minus_5];
         let a = Secp521r1::one();
         let b = a.neg();
-        let mut points = [a, b];
+        let points = [a, b];
 
         let result =
             Secp521r1::evaluate_linear_expression(points, scalars, [Secp521r1::one().neg()]);
 
         assert(result.is_infinity);
+    }
+
+    #[test]
+    unconstrained fn verify_offset_generators() {
+        // Secp521r1 cofactor is 1
+        crate::utils::derive_offset_generators::verify_offset_generators::<Secp521r1_Fq, SECP521r1_SCALAR_SLICES, Secp521r1>(
+            1,
+        );
     }
 
     #[test]
