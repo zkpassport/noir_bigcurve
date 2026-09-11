@@ -31,26 +31,26 @@ pub global BRAINPOOLP256r1_PARAM: BigCurveParams<BrainpoolP256r1_Fq> = BigCurveP
     ],
     offset_generator: [
         BrainpoolP256r1_Fq::from_limbs([
-            0x2fff6a6ef2915991612b4909104b15,
-            0xbfd4494ef86cd7bf260d1a402708a0,
-            0xa74f,
+            0xb2a18a1b76317233dbce6ca69dda29,
+            0x5b6dd810bafe6337eb57131957bfd5,
+            0x0a3d,
         ]),
         BrainpoolP256r1_Fq::from_limbs([
-            0x3e096aac7583716de36fd796f4177f,
-            0x3aa63e235b213f416539e3c68a92a6,
-            0x38fc,
+            0xa6431ef41460120e77d1244f6a359d,
+            0x11b64140abb4a362107e18403f72cf,
+            0x77d0,
         ]),
     ],
     offset_generator_final: [
         BrainpoolP256r1_Fq::from_limbs([
-            0x37f51e0f570c65419f8eff21c70eba,
-            0x44d6d5f4d580a7ee1fe9122557ad60,
-            0x3c63,
+            0xcf6ee4eaf53b9635fd9354a95fc13b,
+            0x0ad036f490ae2ab57695484b175d67,
+            0x3ee3,
         ]),
         BrainpoolP256r1_Fq::from_limbs([
-            0xe1fbc0a3edec9f54d91ef268d56630,
-            0xd98545f8c16bafb3b176c0dbf5a8b7,
-            0x6ce3,
+            0xcd1b62a6e1d068fca8c6b43707f0ab,
+            0x22d71b05c0c1f36b90699f883a0a82,
+            0x1783,
         ]),
     ],
 };

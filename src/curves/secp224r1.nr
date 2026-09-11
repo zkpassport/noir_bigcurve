@@ -23,18 +23,18 @@ pub global SECP224r1_PARAM: BigCurveParams<Secp224r1_Fq> = BigCurveParams {
     ],
     offset_generator: [
         Secp224r1_Fq::from_limbs(
-            [0x0b1becc27495b0627d5f738ff72f79, 0x875c2291095a513dcb8570a218],
+            [0x946f59bff1b2459a4181b9f4ae1ed1, 0x7157c368728ba507698a6fe3aa],
         ),
         Secp224r1_Fq::from_limbs(
-            [0x92bf55ae85411435b8a6bba29806c0, 0x949ef9ca2149a81937aa120597],
+            [0x090a351e77ffdbf0edf296eab2eeab, 0x895890f471364ee3beaba62596],
         ),
     ],
     offset_generator_final: [
         Secp224r1_Fq::from_limbs(
-            [0x983545ec2fb58be315bbeb0e5d2fd3, 0x8e26e141759ad66bda034c0791],
+            [0x29e9454898ffb3b5c9372673fbb008, 0xce156345d84e63f9d434d6b96c],
         ),
         Secp224r1_Fq::from_limbs(
-            [0x694ec3af554a7585d80a365c9bc44f, 0xf1175d6237e43622fc6000f527],
+            [0xd312bae7a1abc6bfd046bb114d1be4, 0xf1cc0a88c06962b063f3e909bd],
         ),
     ],
 };

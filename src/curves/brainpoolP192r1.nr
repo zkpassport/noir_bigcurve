@@ -14,12 +14,12 @@ pub global BRAINPOOLP192r1_PARAM: BigCurveParams<BrainpoolP192r1_Fq> = BigCurveP
         BrainpoolP192r1_Fq::from_limbs([0x5f4828c1490002e6773fa2fa299b8f, 0x14b690866abd5bb88b]),
     ],
     offset_generator: [
-        BrainpoolP192r1_Fq::from_limbs([0xee73390f694be13dd1c500d4db1c72, 0x65d1353fba83b964ef]),
-        BrainpoolP192r1_Fq::from_limbs([0xf16aa2a740c2f7a53449204ba6e914, 0x87ad03322130c94151]),
+        BrainpoolP192r1_Fq::from_limbs([0x565f64a6c86d895a8d61ff56ded4f0, 0xbc8fbc218c269121ff]),
+        BrainpoolP192r1_Fq::from_limbs([0x7e686108f39c3c0a0581a8044dc3ab, 0x53943e718f704cd07a]),
     ],
     offset_generator_final: [
-        BrainpoolP192r1_Fq::from_limbs([0xcce6360e0d80e6e50a687875d069dc, 0x1e86ca77de92ff219b]),
-        BrainpoolP192r1_Fq::from_limbs([0xc1dfdc985ddb141803b423cd759c3d, 0xa862a05160f0052a7d]),
+        BrainpoolP192r1_Fq::from_limbs([0x04487d77f1dcab4f1054afd1dc6067, 0xb5ee20620dc9854a0b]),
+        BrainpoolP192r1_Fq::from_limbs([0x63f06fcba2c6518df3b4a2400aa3ac, 0x65c1d1576fdb76c68b]),
     ],
 };
 
