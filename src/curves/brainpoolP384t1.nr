@@ -1,9 +1,10 @@
-use crate::BigCurve;
-use crate::BigCurveParams;
-use crate::derive_curve_impl;
-use crate::scalar_field::ScalarField;
 use bignum::BigNum;
 pub use bignum::{BrainpoolP384t1_Fq, BrainpoolP384t1_Fr};
+
+use crate::bigcurve::BigCurve;
+use crate::bigcurve::BigCurveParams;
+use crate::bigcurve::derive_curve_impl;
+use crate::scalar_field::ScalarField;
 
 pub global BRAINPOOLP384t1_PARAM: BigCurveParams<BrainpoolP384t1_Fq> = BigCurveParams {
     a: BrainpoolP384t1_Fq::from_limbs([
@@ -18,34 +19,6 @@ pub global BRAINPOOLP384t1_PARAM: BigCurveParams<BrainpoolP384t1_Fq> = BigCurveP
         0xada7bda81bd826dba647910f8c4b93,
         0x7f519e,
     ]),
-    offset_generator: [
-        BrainpoolP384t1_Fq::from_limbs([
-            0xab2a95595a8cf5c742744146db4423,
-            0xcafbcff834543d7813419ddbc47dc9,
-            0x5d28d6a981a53726bf047776d08a7e,
-            0x168260,
-        ]),
-        BrainpoolP384t1_Fq::from_limbs([
-            0x3a87f2e823514ed685a7dd25cfcdbe,
-            0xd7dd6f25cb3c5766b7a36e055c5523,
-            0xd29b58363212f0d12f1f8869a093fb,
-            0x6e1883,
-        ]),
-    ],
-    offset_generator_final: [
-        BrainpoolP384t1_Fq::from_limbs([
-            0x1e940dd0d5fd274ecda25613aea130,
-            0x6c088dcfccc1a92ada8b7195c33b31,
-            0x2fc84411ddaf2f68a06db9fcc77a59,
-            0x195942,
-        ]),
-        BrainpoolP384t1_Fq::from_limbs([
-            0xf3c0a8d407798b901c3cd905ac157d,
-            0xfaa93dfeae5e0759fe001cf3f52f1d,
-            0x2fbc2d9f2c4f18a417c7b40823d678,
-            0x781ef2,
-        ]),
-    ],
     one: [
         BrainpoolP384t1_Fq::from_limbs([
             0xff191b946a5f54d8d0aa2f418808cc,
@@ -58,6 +31,34 @@ pub global BRAINPOOLP384t1_PARAM: BigCurveParams<BrainpoolP384t1_Fq> = BigCurveP
             0x93475b7a1fca3b88f2b6a208ccfe46,
             0x6962d30651a114afd2755ad336747f,
             0x25ab05,
+        ]),
+    ],
+    offset_generator: [
+        BrainpoolP384t1_Fq::from_limbs([
+            0xae6be89bd04bf1a712106d4827c1db,
+            0x67e4bc01d70bd67b7eea3653e42974,
+            0x9148d83d218c3c3d578f915067d6fd,
+            0x24976d,
+        ]),
+        BrainpoolP384t1_Fq::from_limbs([
+            0xfd82a53255130ef7619e1b4bb3cc9a,
+            0x0fd691a67d7cd6b566e76c8487f4f7,
+            0x01f3f6794453902bf199d89081c3d9,
+            0x04ad53,
+        ]),
+    ],
+    offset_generator_final: [
+        BrainpoolP384t1_Fq::from_limbs([
+            0x309344b21770b5a7b1cdc295b2f349,
+            0x9ef4f158d95d38f64bbd08b66a1c01,
+            0x0d6bcb681cb856dc0760ed2db5e3a4,
+            0x046ee9,
+        ]),
+        BrainpoolP384t1_Fq::from_limbs([
+            0x8a1b0f3571bf9e533a749a371238ea,
+            0x3308b50592570285d12e8846cff6ce,
+            0xc79d5ecd1ab174e8826ef51a655f99,
+            0x78fd40,
         ]),
     ],
 };
@@ -76,10 +77,9 @@ mod test {
     use bignum::{BigNum, BrainpoolP384t1_Fq, BrainpoolP384t1_Fr};
     use std::ops::Neg;
 
-    use crate::BigCurve;
-    use super::BrainpoolP384t1;
-    use super::BRAINPOOLP384t1_SCALAR_SLICES;
-    use super::BrainpoolP384t1Scalar;
+    use crate::bigcurve::BigCurve;
+
+    use super::{BrainpoolP384t1, BRAINPOOLP384t1_SCALAR_SLICES, BrainpoolP384t1Scalar};
 
     #[test]
     fn check_num_scalar_slices_in_scalar_field() {
@@ -114,10 +114,10 @@ mod test {
         let p_minus_4 = BrainpoolP384t1Scalar::from_bignum(p_minus_4_fr);
         let p_minus_5_fr = p_minus_4_fr - BrainpoolP384t1_Fr::one();
         let p_minus_5 = BrainpoolP384t1Scalar::from_bignum(p_minus_5_fr);
-        let mut scalars = [p_minus_4, p_minus_5];
+        let scalars = [p_minus_4, p_minus_5];
         let a = BrainpoolP384t1::one();
         let b = a.neg();
-        let mut points = [a, b];
+        let points = [a, b];
 
         let result = BrainpoolP384t1::evaluate_linear_expression(
             points,
@@ -126,6 +126,14 @@ mod test {
         );
 
         assert(result.is_infinity);
+    }
+
+    #[test]
+    unconstrained fn verify_offset_generators() {
+        // BrainpoolP384t1 cofactor is 1
+        crate::utils::derive_offset_generators::verify_offset_generators::<BrainpoolP384t1_Fq, BRAINPOOLP384t1_SCALAR_SLICES, BrainpoolP384t1>(
+            1,
+        );
     }
 
     #[test]
