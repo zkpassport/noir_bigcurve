@@ -1,38 +1,44 @@
-use crate::BigCurve;
-use crate::BigCurveParams;
-use crate::derive_curve_impl;
-use crate::scalar_field::ScalarField;
 use bignum::BigNum;
 pub use bignum::{Secp224r1_Fq, Secp224r1_Fr};
 
+use crate::bigcurve::BigCurve;
+use crate::bigcurve::BigCurveParams;
+use crate::bigcurve::derive_curve_impl;
+use crate::scalar_field::ScalarField;
+
 pub global SECP224r1_PARAM: BigCurveParams<Secp224r1_Fq> = BigCurveParams {
-    a: Secp224r1_Fq::from(0xfffffffffffffffffffffffffffffffefffffffffffffffffffffffe),
-    b: Secp224r1_Fq::from(0xb4050a850c04b3abf54132565044b0b7d7bfd8ba270b39432355ffb4),
+    a: Secp224r1_Fq::from_limbs(
+        [0xfffffefffffffffffffffffffffffe, 0xffffffffffffffffffffffffff],
+    ),
+    b: Secp224r1_Fq::from_limbs(
+        [0x44b0b7d7bfd8ba270b39432355ffb4, 0xb4050a850c04b3abf541325650],
+    ),
+    one: [
+        Secp224r1_Fq::from_limbs(
+            [0x03c1d356c21122343280d6115c1d21, 0xb70e0cbd6bb4bf7f321390b94a],
+        ),
+        Secp224r1_Fq::from_limbs(
+            [0x4375a05a07476444d5819985007e34, 0xbd376388b5f723fb4c22dfe6cd],
+        ),
+    ],
     offset_generator: [
-        Secp224r1_Fq::from_limbs([
-            256580546934709026519577652212863357,
-            11339088992457647144137718767961,
-        ]),
-        Secp224r1_Fq::from_limbs([
-            353594544583432096372112790460281511,
-            2171878428325809151599171173861,
-        ]),
+        Secp224r1_Fq::from_limbs(
+            [0x0b1becc27495b0627d5f738ff72f79, 0x875c2291095a513dcb8570a218],
+        ),
+        Secp224r1_Fq::from_limbs(
+            [0x92bf55ae85411435b8a6bba29806c0, 0x949ef9ca2149a81937aa120597],
+        ),
     ],
     offset_generator_final: [
-        Secp224r1_Fq::from_limbs([
-            1054362967121624051910781646571944004,
-            13920482839761186129698370926212,
-        ]),
-        Secp224r1_Fq::from_limbs([
-            1271693749289344300113760553252857630,
-            17890356279514120347325778718798,
-        ]),
-    ],
-    one: [
-        Secp224r1_Fq::from(0xb70e0cbd6bb4bf7f321390b94a03c1d356c21122343280d6115c1d21),
-        Secp224r1_Fq::from(0xbd376388b5f723fb4c22dfe6cd4375a05a07476444d5819985007e34),
+        Secp224r1_Fq::from_limbs(
+            [0x983545ec2fb58be315bbeb0e5d2fd3, 0x8e26e141759ad66bda034c0791],
+        ),
+        Secp224r1_Fq::from_limbs(
+            [0x694ec3af554a7585d80a365c9bc44f, 0xf1175d6237e43622fc6000f527],
+        ),
     ],
 };
+
 pub global SECP224r1_SCALAR_SLICES: u32 = 57;
 pub type Secp224r1Scalar = ScalarField<SECP224r1_SCALAR_SLICES>;
 
@@ -47,10 +53,9 @@ mod test {
     use bignum::{BigNum, Secp224r1_Fq, Secp224r1_Fr};
     use std::ops::Neg;
 
-    use crate::BigCurve;
-    use super::Secp224r1;
-    use super::SECP224r1_SCALAR_SLICES;
-    use super::Secp224r1Scalar;
+    use crate::bigcurve::BigCurve;
+
+    use super::{Secp224r1, SECP224r1_SCALAR_SLICES, Secp224r1Scalar};
 
     #[test]
     fn check_num_scalar_slices_in_scalar_field() {
@@ -85,15 +90,23 @@ mod test {
         let p_minus_4 = Secp224r1Scalar::from_bignum(p_minus_4_fr);
         let p_minus_5_fr = p_minus_4_fr - Secp224r1_Fr::one();
         let p_minus_5 = Secp224r1Scalar::from_bignum(p_minus_5_fr);
-        let mut scalars = [p_minus_4, p_minus_5];
+        let scalars = [p_minus_4, p_minus_5];
         let a = Secp224r1::one();
         let b = a.neg();
-        let mut points = [a, b];
+        let points = [a, b];
 
         let result =
             Secp224r1::evaluate_linear_expression(points, scalars, [Secp224r1::one().neg()]);
 
         assert(result.is_infinity);
+    }
+
+    #[test]
+    unconstrained fn verify_offset_generators() {
+        // Secp224r1 cofactor is 1
+        crate::utils::derive_offset_generators::verify_offset_generators::<Secp224r1_Fq, SECP224r1_SCALAR_SLICES, Secp224r1>(
+            1,
+        );
     }
 
     #[test]
