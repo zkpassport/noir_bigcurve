@@ -27,22 +27,22 @@ pub global BRAINPOOLP224r1_PARAM: BigCurveParams<BrainpoolP224r1_Fq> = BigCurveP
     ],
     offset_generator: [
         BrainpoolP224r1_Fq::from_limbs([
-            0xb73c1180aae81381357eb51f39b064,
-            0x24bf5a41d7d66348f137a76435,
+            0x2ac97021a80a8156c585cf92933ef8,
+            0x95ae8f4efb7a3ae99eb0b586e5,
         ]),
         BrainpoolP224r1_Fq::from_limbs([
-            0xc254299cea50a37af22f21a2357768,
-            0x45a9a2f5b6500b287e64cb63c4,
+            0x692bb26fc3b64b6dec2ba62fc11710,
+            0x69d967e78a4dc06038d4bb1d3f,
         ]),
     ],
     offset_generator_final: [
         BrainpoolP224r1_Fq::from_limbs([
-            0x53131053493a1f001fe54a724664be,
-            0x869eacf9fb87effe7b8bca3b6c,
+            0x0312f3eb3f899974b0e6e20da9355a,
+            0x53c9f4cdbb3decbab32d546a92,
         ]),
         BrainpoolP224r1_Fq::from_limbs([
-            0x0f346f2c5963852e0a455a7fb21b31,
-            0xb5a213c1536fd2d556a30c9637,
+            0xc8e3be1d563dacfc7154b066c5f150,
+            0x4f8dafb15140e09db144cec356,
         ]),
     ],
 };
